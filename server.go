@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"syscall"
 	"time"
 )
 
@@ -144,6 +145,14 @@ func (s *session) WriteRequest() {
 	// TODO: use different permission for the file
 	fd, err := os.OpenFile(s.req.filename, os.O_CREATE|os.O_WRONLY, 0777)
 	if err != nil {
+		if e, ok := err.(*os.PathError); ok && e.Err == syscall.ENOSPC {
+			err = s.sendError(conn, uint16(3), "Disk full or allocation exceeded")
+			if err != nil {
+				log.Printf("WRQ: Error sending error packet to %v.\n", addr)
+			}
+			log.Printf("WRQ: Not enough space to open the %s file descriptor\n", s.req.filename)
+			return
+		}
 		err = s.sendError(conn, uint16(0), "Not defined error: Could not open the file descriptor")
 		if err != nil {
 			log.Printf("WRQ: Error sending error packet to %v.\n", addr)
