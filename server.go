@@ -62,16 +62,21 @@ func (s *session) Serve(pconn net.PacketConn) error {
 		s.req = request
 		s.addr = addr
 
+		if *dir != "" {
+			dirInfo, err := os.Stat(*dir)
+			if err != nil {
+				// TODO: error
+				return err
+			}
+			if !dirInfo.IsDir() {
+				log.Fatalf("Given directory parameter: %s is not valid", *dir)
+			}
+			s.req.filename = *dir + "/" + s.req.filename
+		}
 		switch s.req.opcode {
 		case RRQ:
-			if *dir != "" {
-				s.req.filename = *dir + "/" + s.req.filename
-			}
 			go s.ReadRequest()
 		case WRQ:
-			if *dir != "" {
-				s.req.filename = *dir + "/" + s.req.filename
-			}
 			go s.WriteRequest()
 		default:
 			// TODO: received packet is incorrect
