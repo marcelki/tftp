@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"flag"
 	"fmt"
 	"github.com/marcelki/tftp/netascii"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -101,23 +103,29 @@ func (s *session) ReadRequest() {
 		log.Printf("RRQ: Requested file %v does not exist\n", s.req.filename)
 		return
 	}
-	fd, err := os.Open(s.req.filename)
+	buf, err := ioutil.ReadFile(s.req.filename)
 	if err != nil {
-		err = s.sendError(conn, uint16(0), "Not defined error: Could not open the file descriptor")
+		err = s.sendError(conn, uint16(0), "Not defined error: couldn't open the file")
 		if err != nil {
 			log.Printf("RRQ: Error sending error packet to %v.\n", addr)
 		}
-		log.Printf("RRQ: Could not open the %s file descriptor for reading: %s \n", s.req.filename, err)
+		log.Printf("RRQ: Couldn't open the %s file descriptor for file: %s\n", s.req.filename, err)
 		return
-
 	}
-	// initial ack id
 	id := uint16(1)
-	// check if we get a performance gain, when not reusing the slice/array
 	data := make([]byte, 512)
+	rd := bytes.NewReader(buf)
 	for {
-		n, err := io.ReadFull(fd, data)
-		if err != nil && err != io.ErrUnexpectedEOF {
+		n, err := rd.Read(data)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			err = s.sendError(conn, uint16(0), "Not defined error: couldn't read from file")
+			if err != nil {
+				log.Printf("RRQ: Error sending error packet to %v.\n", addr)
+			}
+			log.Printf("RRQ: Could not read from reader: %s\n", s.req.filename)
 			return
 		}
 		err = s.sendData(conn, id, data[:n])
