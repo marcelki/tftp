@@ -11,7 +11,7 @@ func WriteTo(b []byte, bw *bufio.Writer) (n int, err error) {
 	b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\n'}, -1)
 	n, err = bw.Write(b)
 	if err != nil {
-		return 0, err
+		return n, err
 	}
 	return n, nil
 }
